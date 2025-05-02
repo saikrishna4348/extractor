@@ -2,7 +2,7 @@ import streamlit as st
 import tempfile
 import os
 import fitz  # PyMuPDF
-import easyocr
+import pytesseract
 import json
 from PIL import Image
 import io
@@ -17,9 +17,6 @@ def process_pdf(pdf_file):
         pdf_path = os.path.join(temp_dir, "uploaded.pdf")
         with open(pdf_path, "wb") as f:
             f.write(pdf_file.getbuffer())
-        
-        # Initialize EasyOCR reader
-        reader = easyocr.Reader(['en'])
         
         # Open the PDF with PyMuPDF
         doc = fitz.open(pdf_path)
@@ -37,9 +34,8 @@ def process_pdf(pdf_file):
             img_path = os.path.join(temp_dir, f"page_{page_num}.png")
             img.save(img_path)
             
-            # Perform OCR using EasyOCR
-            result = reader.readtext(img_path)
-            text = " ".join([item[1] for item in result])
+            # Perform OCR using pytesseract
+            text = pytesseract.image_to_string(img_path, lang='eng')
             
             data.append({"page": page_num + 1, "text": text.strip()})
             
