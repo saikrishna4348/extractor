@@ -1,9 +1,11 @@
 import streamlit as st
 import tempfile
 import os
-from pdf2image import convert_from_path
+import fitz  # PyMuPDF
 import pytesseract
 import json
+from PIL import Image
+import io
 from format import format_ocr_data
 
 st.set_page_config(page_title="PDF to Formatted JSON Converter", page_icon="📄")
@@ -16,14 +18,24 @@ def process_pdf(pdf_file):
         with open(pdf_path, "wb") as f:
             f.write(pdf_file.getbuffer())
         
-        # Convert PDF to images
-        images = convert_from_path(pdf_path)
+        # Open the PDF with PyMuPDF
+        doc = fitz.open(pdf_path)
         data = []
         
-        # Process each page with OCR
-        for i, img in enumerate(images):
+        # Process each page
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            
+            # Get the page as an image
+            pix = page.get_pixmap(matrix=fitz.Matrix(300/72, 300/72))  # 300 DPI
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            
+            # Perform OCR
             text = pytesseract.image_to_string(img)
-            data.append({"page": i+1, "text": text.strip()})
+            data.append({"page": page_num + 1, "text": text.strip()})
+        
+        # Close the document
+        doc.close()
         
         # Save OCR output
         ocr_output_path = os.path.join(temp_dir, "output_ocr.json")
@@ -55,14 +67,7 @@ def main():
                 
                 # Display success message
                 st.success("PDF processed successfully!")
-                  # Create download button
-                json_str = json.dumps(formatted_data, indent=4, ensure_ascii=False)
-                st.download_button(
-                    label="Download Formatted JSON",
-                    data=json_str,
-                    file_name="formatted_output.json",
-                    mime="application/json"
-                )
+                
                 # Show preview of the formatted data
                 st.subheader("Preview of Formatted Data")
                 st.json(formatted_data)
